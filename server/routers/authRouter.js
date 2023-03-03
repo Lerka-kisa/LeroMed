@@ -1,12 +1,12 @@
-const express = require("express");
-//const authController = require("../controllers/authController");
-const authRouter = new express.Router();
+const Router = require("express").Router;
+const authController = require("../controllers/authController");
+const authRouter = new Router();
 
-authRouter.post('/registration');
-authRouter.post('/login');
-authRouter.post('/logout');
-authRouter.get('/activate/:link');
-authRouter.get('refresh');
-authRouter.get('users');
+authRouter.post('/registration', authController.registration);
+authRouter.post('/login', authController.login);
+authRouter.post('/logout', authController.logout);
+authRouter.get('/activate/:link', authController.activate);
+authRouter.get('/refresh', authController.refresh);
+authRouter.get('/users', authController.getUsers);
 
 module.exports = authRouter;
