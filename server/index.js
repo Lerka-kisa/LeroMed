@@ -15,12 +15,15 @@ app.use(cookieParser(""));
 const {sequelize} = require('./db');
 const model = require('./models/models');
 
+const errorMiddleware = require('./middlewares/errorMiddleware')
+
 const PORT = process.env.PORT || 3031;
 
-//const fs = require("fs");
+const fs = require("fs");
 
 const router = require("./routers/router");
 app.use('/api', router)
+app.use(errorMiddleware);
 
 const start = async () => {
     try{

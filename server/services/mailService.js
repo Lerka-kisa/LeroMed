@@ -1,4 +1,3 @@
-const model = require("../models/models");
 const nodemailer = require('nodemailer')
 
 class MailService {
@@ -18,12 +17,14 @@ class MailService {
         console.log("Письмо " + link + " отправится " + email_to)
         await this.transporter.sendMail({
             from: process.env.SMTP_USER,
-            email_to,
-            subject:"Activation on Leromed",
+            to: email_to,
+            subject:"Activation on LeroMed",
             text: '',
             html:`<div>
-                     <h1>To activate, follow the link</h1>
+                     <h1>Welcome to LeroMed.</h1> 
+                     <h2>Just now, your email was specified when registering an account, for further cooperation, please follow the link</h2>
                      <a href="${link}">${link}</a>
+                     <h2>If you have not registered on our site, ignore this message.</h2>
                  </div>`,
                textEncoding: 'base64'
 

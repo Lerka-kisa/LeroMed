@@ -1,57 +1,76 @@
 const AuthService = require('../services/authService');
+const {validationResult} = require("express-validator");
+const ApiError = require("../error/apiError");
 
 class AuthController {
     async registration(req, res, next){
         try{
-            // const errors = validationResult(req)
-            // if (!errors.isEmpty()) {
-            //     return next(ApiError.BadRequest('Validation error: ' +  errors.array()[0].msg.toString()))
-            // }
+            const errors = validationResult(req)
+            if (!errors.isEmpty()) {
+                return next(ApiError.BadRequest('Validation error', errors.array()))
+            }
             const authData = await AuthService.registration(req.body);
-            //res.cookies('refreshToken', authData.refreshToken, {maxAge: 30*24*60*60*1000, httpOnly});
+            res.cookie('refreshToken', authData.refreshToken, { httpOnly: true, sameSite: 'strict'});
             return res.json(authData)
         } catch (e) {
-            console.log(e)
+            console.log(e);
+            next(e);
         }
     }
 
     async login(req, res, next){
         try{
-
+            const authData = await AuthService.login(req.body);
+            res.cookie('refreshToken', authData.refreshToken, { httpOnly: true, sameSite: 'strict'});
+            return res.json(authData)
         } catch (e) {
-
+            console.log(e);
+            next(e);
         }
     }
 
     async logout(req, res, next){
         try{
-
+            const {refreshToken} = req.cookies;
+            const token = await AuthService.logout(refreshToken);
+            res.clearCookie('refreshToken')
+            return res.json(token);
         } catch (e) {
-
+            console.log(e);
+            next(e);
         }
     }
 
     async activate(req, res, next){
-        try{
-
+        try {
+            const activateLink = req.params.link
+            await AuthService.activate(activateLink)
+            return res.redirect(process.env.CLIENT_URL)
         } catch (e) {
-
+            console.log(e);
+            next(e);
         }
     }
 
     async refresh(req, res, next){
         try{
-
+            const {refreshToken} = req.cookies;
+            const authData = await AuthService.refresh(refreshToken);
+            res.cookie('refreshToken', authData.refreshToken, { httpOnly: true, sameSite: 'strict'});
+            return res.json(authData)
         } catch (e) {
-
+            console.log(e);
+            next(e);
         }
     }
 
     async getUsers(req, res, next){
         try{
-            res.json(['11', '111', '1111'])
+            const users = await AuthService.getAllAuthInfo();
+            return res.json(users)
         } catch (e) {
-
+            console.log(e);
+            next(e);
         }
     }
 }

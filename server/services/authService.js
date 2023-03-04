@@ -1,31 +1,40 @@
 const model = require("../models/models");
-const sequelize = require('../db');
 const TokenService = require('../services/tokenService')
 const MailService = require('../services/mailService')
 const AuthDto = require('../dto/authDto')
 const bcrypt = require("bcrypt");
 const uuid = require('uuid')
 const ApiError = require("../error/apiError");
+const Sequelize = require("sequelize");
 
 class AuthService {
+    getIdAccount = async (role, id_auth) => {
+        switch(role) {
+            case 'PATIENT':
+                const patient = await model.Patients.findOne({where:{id_auth}})
+                return patient.id;
+            case 'DOCTOR':
+                const doctor = await model.Doctors.findOne({where:{id_auth}})
+                return doctor.id;
+            default:
+                return 0;
+        }
+    }
+
     async registration(body){
         let {login, password, email, phone} = body
-        // bankInfo = bankInfo || null
-        // address = address || null
+
         const candidate_email = await model.Authorization_info.findOne({where: {email}})
         if (candidate_email)
-            //throw ApiError.BadRequest('Exist email')
-            throw new Error('Exist email')
+            throw ApiError.BadRequest('Exist email')
 
         const candidate_login = await model.Authorization_info.findOne({where: {login}})
         if (candidate_login)
-            //throw ApiError.BadRequest('Exist email')
-            throw new Error('Exist login')
+            throw ApiError.BadRequest('Exist login')
 
         const candidate_phone = await model.Authorization_info.findOne({where: {phone}})
         if (candidate_phone)
-            throw ApiError.BadRequest('Exist email')
-            //throw new Error('Exist phone')
+            throw ApiError.BadRequest('Exist phone')
 
         const hash_password = await bcrypt.hash(password, 5)
         const activation_link = uuid.v4()
@@ -55,8 +64,7 @@ class AuthService {
             }/*, {transaction: t}*/)
             console.log(`New patient has been created with Id: ${patient.id}`);
 
-            //return{message:"kokokoko"}
-            await MailService.sendActivationMail(email, `${process.env.API_URL}/users/activate/${activation_link}`)
+            await MailService.sendActivationMail(email, `${process.env.API_URL}/auth/activate/${activation_link}`)
             //await t.commit()
             console.log(`Activate message has been sent`);
 
@@ -68,11 +76,63 @@ class AuthService {
         }catch (e){
             //await t.rollback()
             console.log(`Registration error: ${e.message}`)
-            //throw new ApiError.BadRequest('Error registration')
-            throw new Error('Error registration')
+            throw new ApiError.BadRequest('Error registration')
         }
     }
 
+    async activate(activation_link){
+        const user = await model.Authorization_info.findOne({where: {activation_link}})
+        if(!user)
+            throw ApiError.BadRequest('Invalid activation link')
+        await model.Authorization_info.update({is_activated: true}, {where: {id: user.id}})
+    }
+
+    async login(body) {
+        const auth_info = await model.Authorization_info.findOne({
+            where:{
+                [Sequelize.Op.or]:[{login: body.login}, {email: body.login}, {phone: body.login}]
+            }
+        })
+        if(!auth_info){
+            throw ApiError.BadRequest('User not found');
+        }
+        if (!auth_info.is_activated)
+            throw ApiError.BadRequest('Inactive account');
+        let comparePassword = bcrypt.compareSync(body.password, auth_info.hash_password)
+        if (!comparePassword)
+            throw ApiError.BadRequest('Invalid password');
+        const id_account = await this.getIdAccount(auth_info.role, auth_info.id)
+        const authDto = new AuthDto(auth_info, id_account);
+        const tokens = TokenService.generateTokens({...authDto});
+        await TokenService.saveToken(authDto.id, tokens.refreshToken);
+
+        return {...tokens, auth_info: authDto}
+    }
+
+    async logout(refresh_token) {
+        return await TokenService.removeToken(refresh_token);
+    }
+
+    async refresh(refresh_token){
+        if (!refresh_token)
+            throw ApiError.UnauthorizedError()
+        const authData = TokenService.validateRefreshToken(refresh_token)
+        const tokenFromDB = await TokenService.findToken(refresh_token)
+        if (!authData || !tokenFromDB){
+            throw ApiError.UnauthorizedError()
+        }
+        const auth_info = await model.Authorization_info.findByPk(authData.id)
+        const id_account = await this.getIdAccount(auth_info.role, auth_info.id)
+        const authDto = new AuthDto(auth_info, id_account);
+        const tokens = TokenService.generateTokens({...authDto});
+        await TokenService.saveToken(authDto.id, tokens.refreshToken);
+
+        return {...tokens, auth_info: authDto}
+    }
+
+    async getAllAuthInfo(){
+        return await model.Authorization_info.findAll();
+    }
 }
 
 module.exports = new AuthService()
