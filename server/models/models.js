@@ -338,7 +338,7 @@ Appointments.belongsTo(Patients, {foreignKey: 'id_patient'});
 module.exports = {
     Types_of_analysis, Card_status, Medical_cards, Analysis_results, Medcards_records, Analysis_norms,
     Norms_scores, Authorization_info, Tokens, Doctors, Sectors, Age_group, Gender, Patients,
-    Appointments, Types_of_appointments, Timetable, House_calls, Types_of_shifts, Addresses
+    Appointments, Types_of_appointments, Timetable, House_calls, Types_of_shifts, Addresses, Specializations
 };
 // module.exports = {
 //     Authorization_info, Tokens

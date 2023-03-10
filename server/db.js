@@ -11,5 +11,8 @@ const sequelize = new Sequelize(
         dialect: 'mssql'
     }
 );
+// const sequelize = new Sequelize('LeroMed', "LERA", "Nata_5442488",
+//     {host: 'localhost'/*'host.docker.internal'*/, dialect: 'mssql'}
+// );
 
 module.exports = {sequelize}

@@ -3,13 +3,27 @@ const {validationResult} = require("express-validator");
 const ApiError = require("../error/apiError");
 
 class AuthController {
-    async registration(req, res, next){
+    async patientRegistration(req, res, next){
         try{
             const errors = validationResult(req)
             if (!errors.isEmpty()) {
                 return next(ApiError.BadRequest('Validation error', errors.array()))
             }
-            const authData = await AuthService.registration(req.body);
+            const authData = await AuthService.patientRegistration(req.body);
+            res.cookie('refreshToken', authData.refreshToken, { httpOnly: true, sameSite: 'strict'});
+            return res.json(authData)
+        } catch (e) {
+            console.log(e);
+            next(e);
+        }
+    }
+    async doctorRegistration(req, res, next){
+        try{
+            const errors = validationResult(req)
+            if (!errors.isEmpty()) {
+                return next(ApiError.BadRequest('Validation error', errors.array()))
+            }
+            const authData = await AuthService.doctorRegistration(req.body);
             res.cookie('refreshToken', authData.refreshToken, { httpOnly: true, sameSite: 'strict'});
             return res.json(authData)
         } catch (e) {

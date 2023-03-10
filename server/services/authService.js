@@ -20,10 +20,7 @@ class AuthService {
                 return 0;
         }
     }
-
-    async registration(body){
-        let {login, password, email, phone} = body
-
+    employmentCheck = async(login, email, phone) => {
         const candidate_email = await model.Authorization_info.findOne({where: {email}})
         if (candidate_email)
             throw ApiError.BadRequest('Exist email')
@@ -35,6 +32,12 @@ class AuthService {
         const candidate_phone = await model.Authorization_info.findOne({where: {phone}})
         if (candidate_phone)
             throw ApiError.BadRequest('Exist phone')
+    }
+
+    async patientRegistration(body){
+        let {login, password, email, phone} = body
+
+        await this.employmentCheck(login, email, phone);
 
         const hash_password = await bcrypt.hash(password, 5)
         const activation_link = uuid.v4()
@@ -69,6 +72,47 @@ class AuthService {
             console.log(`Activate message has been sent`);
 
             const authDto = new AuthDto(auth_info, patient.id);
+            const tokens = TokenService.generateTokens({...authDto});
+            await TokenService.saveToken(authDto.id, tokens.refreshToken);
+
+            return {...tokens, auth_info: authDto}
+        }catch (e){
+            //await t.rollback()
+            console.log(`Registration error: ${e.message}`)
+            throw new ApiError.BadRequest('Error registration')
+        }
+    }
+
+    async doctorRegistration(body){
+        let {login, password, email, phone} = body
+
+        await this.employmentCheck(login, email, phone);
+
+        const hash_password = await bcrypt.hash(password, 5)
+        const activation_link = uuid.v4()
+        //const t = await sequelize.transaction();
+        try {
+            const auth_info = await model.Authorization_info.create({
+                login,
+                hash_password,
+                email,
+                phone,
+                activation_link,
+                is_activated: false,
+                role: 'DOCTOR'
+            }/*, {transaction: t}*/)
+            console.log(`New doctor has been created with Id: ${auth_info.id}`);
+
+            const doctor = await model.Doctors.create({
+                id_auth: auth_info.id
+            }/*, {transaction: t}*/)
+            console.log(`New doctor has been created with Id: ${doctor.id}`);
+
+            await MailService.sendActivationMail(email, `${process.env.API_URL}/auth/activate/${activation_link}`)
+            //await t.commit()
+            console.log(`Activate message has been sent`);
+
+            const authDto = new AuthDto(auth_info, doctor.id);
             const tokens = TokenService.generateTokens({...authDto});
             await TokenService.saveToken(authDto.id, tokens.refreshToken);
 
